@@ -457,8 +457,18 @@ namespace ParkLecture
             using (var dlg = new SettingsDialog(settings))
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                settings = dlg.Result;
-                settings.Save();
+                Settings next = dlg.Result;
+                try
+                {
+                    if (Program.Demo) next.Save();
+                    else StartupRegistration.Save(next);
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show(this, Words.T("설정을 저장하지 못했습니다. 기존 설정을 유지합니다.\n\n", "Could not save settings. Previous settings are kept.\n\n") + e.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                settings = next;
                 RegisterAllHotkeys();
                 UpdateStatus();
             }

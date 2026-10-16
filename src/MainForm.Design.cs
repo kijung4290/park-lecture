@@ -645,7 +645,7 @@ namespace ParkLecture
         internal SettingsDialog(Settings current)
         {
             Text = Words.T("설정", "Settings");
-            ClientSize = new Size(620, 520);
+            ClientSize = new Size(620, 552);
             Font = Style.Font(9.5f);
             BackColor = Style.Sidebar;
             ForeColor = Style.Ink;
@@ -705,8 +705,15 @@ namespace ParkLecture
                 Checked = current.AutoUpdate,
                 Bounds = new Rectangle(24, 418, 540, 26)
             };
+            var startupChk = new CheckBox
+            {
+                Text = Words.T("Windows 시작 시 자동 실행 (로그인할 때)", "Start automatically when signing in to Windows"),
+                Checked = current.StartWithWindows,
+                Bounds = new Rectangle(24, 450, 540, 26),
+                AccessibleName = "Windows 시작 시 자동 실행 / Start with Windows"
+            };
 
-            Controls.AddRange(new Control[] { zoomNum, haloNum, timerNum, trayChk, autoSaveChk, showHudChk, autoUpdateChk });
+            Controls.AddRange(new Control[] { zoomNum, haloNum, timerNum, trayChk, autoSaveChk, showHudChk, autoUpdateChk, startupChk });
 
             var save = Style.Button(Words.T("저장", "Save"), delegate
             {
@@ -743,16 +750,17 @@ namespace ParkLecture
                         CloseToTray = trayChk.Checked,
                         AutoSaveCaptures = autoSaveChk.Checked,
                         ShowHudByDefault = showHudChk.Checked,
-                        AutoUpdate = autoUpdateChk.Checked
+                        AutoUpdate = autoUpdateChk.Checked,
+                        StartWithWindows = startupChk.Checked
                     };
                     DialogResult = DialogResult.OK;
                 }
                 catch (Exception ex) { MessageBox.Show(this, ex.Message, Text); }
             }, true);
-            save.Location = new Point(410, 462);
+            save.Location = new Point(410, 494);
 
             var cancel = Style.Button(Words.T("취소", "Cancel"), delegate { DialogResult = DialogResult.Cancel; });
-            cancel.Location = new Point(506, 462);
+            cancel.Location = new Point(506, 494);
             CancelButton = cancel;
             Controls.AddRange(new Control[] { save, cancel });
         }

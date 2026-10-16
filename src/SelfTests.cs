@@ -116,6 +116,30 @@ namespace ParkLecture
                 if (LectureTimerForm.FormatClock(0) != "00:00") throw new InvalidOperationException("Expected 00:00");
             });
 
+            check("StartupRegistration applies and cleans up registry value safely", delegate
+            {
+                string testSubKey = @"Software\ParkLectureSelfTest_" + Guid.NewGuid().ToString("N");
+                try
+                {
+                    using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(testSubKey))
+                    {
+                        string exe = Path.GetFullPath("ParkLecture.exe");
+                        StartupRegistration.Apply(key, true, exe, delegate { });
+                        object v = key.GetValue(StartupRegistration.ValueName);
+                        if (!Equals(v, "\"" + exe + "\""))
+                            throw new InvalidOperationException("Startup command mismatch: " + v);
+
+                        StartupRegistration.Apply(key, false, exe, delegate { });
+                        if (key.GetValue(StartupRegistration.ValueName) != null)
+                            throw new InvalidOperationException("Startup value was not deleted.");
+                    }
+                }
+                finally
+                {
+                    Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(testSubKey, false);
+                }
+            });
+
             sb.AppendLine(string.Format("Summary: {0} passed, {1} failed", passed, failed));
             File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8);
             return failed == 0 ? 0 : 1;

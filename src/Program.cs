@@ -11,7 +11,7 @@ namespace ParkLecture
 {
     internal static class Program
     {
-        internal const string CurrentVersion = "1.0.0";
+        internal const string CurrentVersion = "1.0.1";
         internal static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ParkLecture");
         internal static bool Demo;
 
@@ -88,6 +88,7 @@ namespace ParkLecture
         public bool AutoSaveCaptures = true;
         public bool ShowHudByDefault = true;
         public bool AutoUpdate = true;
+        public bool StartWithWindows = false;
 
         public static Settings Load()
         {

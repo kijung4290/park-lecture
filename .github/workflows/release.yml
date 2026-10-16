@@ -1,0 +1,57 @@
+name: Build and publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: park-lecture-release-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      PARKLECTURE_HEADLESS_TESTS: '1'
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check version and existing release
+        id: version
+        run: |
+          $source = Get-Content -Raw src/AssemblyInfo.cs
+          if ($source -notmatch 'AssemblyVersion\("(\d+\.\d+\.\d+)\.0"\)') { throw 'Invalid assembly version' }
+          $version = $Matches[1]
+          "version=$version" >> $env:GITHUB_OUTPUT
+          if ($env:GITHUB_REF -like 'refs/tags/*' -and $env:GITHUB_REF -ne "refs/tags/v$version") { throw 'Tag and app version differ' }
+          $publish = 'false'
+          if ($env:GITHUB_EVENT_NAME -ne 'pull_request') {
+            $releases = gh release list --limit 100 --json tagName,isDraft | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read repository releases' }
+            $existing = $releases | Where-Object { $_.tagName -eq "v$version" }
+            if (-not $existing -or $existing.isDraft) { $publish = 'true' }
+          }
+          "publish=$publish" >> $env:GITHUB_OUTPUT
+          exit 0
+      - name: Build and test
+        if: steps.version.outputs.publish != 'true'
+        run: .\build.ps1 -Test
+      - name: Build, test, package and sign
+        if: steps.version.outputs.publish == 'true'
+        env:
+          PARKLECTURE_SIGNING_KEY: ${{ secrets.PARKLECTURE_SIGNING_KEY }}
+        run: .\release.ps1
+      - name: Publish complete release
+        if: steps.version.outputs.publish == 'true'
+        run: .\publish-release.ps1 -Version '${{ steps.version.outputs.version }}'

@@ -1,0 +1,10 @@
+bin/
+bin-preview/
+obj/
+dist/
+test-artifacts/
+*.user
+*.private.xml
+*signing-key*
+*.pfx
+*.p12

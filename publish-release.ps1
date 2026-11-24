@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
 $releaseTag = "v$Version"
 $releaseRepo = 'kijung4290/park-lecture'
-$releaseAssets = @((Join-Path $PSScriptRoot "dist\ParkLecture-$Version-portable.zip"), (Join-Path $PSScriptRoot 'dist\update.json'), (Join-Path $PSScriptRoot 'dist\update.json.sig'))
+$releaseAssets = @('ParkLecture-Setup.exe', "ParkLecture-$Version-portable.zip", 'update.json', 'update.json.sig') | ForEach-Object { Join-Path $PSScriptRoot "dist\$_" }
 foreach ($releaseAsset in $releaseAssets) { if (-not (Test-Path -LiteralPath $releaseAsset)) { throw "Missing release asset: $releaseAsset" } }
 $releaseList = gh release list --repo $releaseRepo --limit 100 --json tagName,isDraft | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { throw 'Could not read repository releases.' }

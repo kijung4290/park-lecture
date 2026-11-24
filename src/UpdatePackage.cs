@@ -10,16 +10,30 @@ using System.Web.Script.Serialization;
 
 namespace ParkLecture.UpdateSupport
 {
-    public sealed class UpdateManifest
+    public class UpdateAsset
+    {
+        public string asset, sha256;
+        public long size;
+    }
+
+    public sealed class UpdateManifest : UpdateAsset
     {
         public int schema;
-        public string version, asset, sha256;
-        public long size;
+        public string version;
+        public UpdateAsset setup;
+
+        internal UpdateAsset PackageFor(bool installed)
+        {
+            if (!installed) return this;
+            if (setup == null) throw new InvalidDataException("The release has no signed Windows installer.");
+            return setup;
+        }
     }
 
     internal static class UpdatePackage
     {
         internal static readonly string[] Files = { "ParkLecture.exe", "ParkLecture.exe.config", "ParkLecture.Updater.exe", "README.md" };
+        internal const string SetupName = "ParkLecture-Setup.exe";
         internal const long MaxPackageSize = 100 * 1024 * 1024;
         internal static string PublicKey
         {
@@ -40,27 +54,46 @@ namespace ParkLecture.UpdateSupport
             var manifest = new JavaScriptSerializer().Deserialize<UpdateManifest>(Encoding.UTF8.GetString(bytes));
             if (manifest == null || manifest.schema != 1) throw new InvalidDataException("Unsupported update manifest.");
             ParseVersion(manifest.version);
-            if (manifest.asset != "ParkLecture-" + manifest.version + "-portable.zip" || manifest.sha256 == null || !Regex.IsMatch(manifest.sha256, "^[a-fA-F0-9]{64}$") || manifest.size <= 0 || manifest.size > MaxPackageSize) throw new InvalidDataException("Invalid update package metadata.");
+            ValidateAsset(manifest, "ParkLecture-" + manifest.version + "-portable.zip");
+            if (manifest.setup != null) ValidateAsset(manifest.setup, SetupName);
             return manifest;
         }
-        internal static string Hash(string path)
-        { using (var stream = File.OpenRead(path)) using (var sha = SHA256.Create()) return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant(); }
-        internal static void Verify(string path, UpdateManifest manifest)
+        private static void ValidateAsset(UpdateAsset package, string expectedName)
         {
-            if (new FileInfo(path).Length != manifest.size || !Hash(path).Equals(manifest.sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Update download is incomplete or has been changed.");
+            if (package.asset != expectedName || package.sha256 == null || !Regex.IsMatch(package.sha256, "^[a-fA-F0-9]{64}$") || package.size <= 0 || package.size > MaxPackageSize)
+                throw new InvalidDataException("Invalid update package metadata.");
+        }
+        internal static void Verify(string path, UpdateAsset package)
+        {
+            using (var stream = File.OpenRead(path)) Verify(stream, package);
+        }
+        internal static void Verify(Stream stream, UpdateAsset package)
+        {
+            if (stream.Length == package.size)
+                using (var sha = SHA256.Create())
+                {
+                    string hash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "");
+                    if (hash.Equals(package.sha256, StringComparison.OrdinalIgnoreCase)) return;
+                }
+            throw new InvalidDataException("Update download is incomplete or has been changed.");
         }
         internal static void Extract(string package, string destination, UpdateManifest manifest)
         {
-            Verify(package, manifest); Directory.CreateDirectory(destination);
+            Directory.CreateDirectory(destination);
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase); long expanded = 0;
-            using (var zip = ZipFile.OpenRead(package))
+            using (var stream = File.OpenRead(package))
             {
-                foreach (var entry in zip.Entries)
+                Verify(stream, manifest);
+                stream.Position = 0;
+                using (var zip = new ZipArchive(stream, ZipArchiveMode.Read))
                 {
-                    if (Array.IndexOf(Files, entry.FullName) < 0 || !seen.Add(entry.FullName)) throw new InvalidDataException("Unexpected or duplicate file in update archive.");
-                    expanded += entry.Length;
-                    if (expanded > 200 * 1024 * 1024 || entry.Length <= 0) throw new InvalidDataException("Invalid expanded package size.");
-                    entry.ExtractToFile(Path.Combine(destination, entry.FullName));
+                    foreach (var entry in zip.Entries)
+                    {
+                        if (Array.IndexOf(Files, entry.FullName) < 0 || !seen.Add(entry.FullName)) throw new InvalidDataException("Unexpected or duplicate file in update archive.");
+                        expanded += entry.Length;
+                        if (expanded > 200 * 1024 * 1024 || entry.Length <= 0) throw new InvalidDataException("Invalid expanded package size.");
+                        entry.ExtractToFile(Path.Combine(destination, entry.FullName));
+                    }
                 }
             }
             if (seen.Count != Files.Length) throw new InvalidDataException("Update package is missing files.");

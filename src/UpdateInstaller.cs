@@ -1,11 +1,36 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using Microsoft.Win32;
 
 namespace ParkLecture.UpdateSupport
 {
     internal static class UpdateInstaller
     {
+        internal const string InstalledAppMutex = @"Local\ParkLectureInstalled";
+        internal static bool IsInstalled(string directory)
+        {
+            string installed = Registry.GetValue(@"HKEY_CURRENT_USER\Software\ParkLecture\Install", "Path", null) as string;
+            return !string.IsNullOrEmpty(installed) && string.Equals(new DirectoryInfo(installed).FullName.TrimEnd(Path.DirectorySeparatorChar),
+                new DirectoryInfo(directory).FullName.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static void RunSetup(string stage, string target, UpdateAsset package)
+        {
+            string setup = Path.Combine(stage, package.asset);
+            string args = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /RESTARTEXITCODE=9 /NOCANCEL /DIR=\"" + target + "\" /LOG=\"" + Path.Combine(stage, "setup.log") + "\"";
+            using (var stream = File.OpenRead(setup))
+            {
+                UpdatePackage.Verify(stream, package);
+                using (var process = Process.Start(new ProcessStartInfo(setup, args) { UseShellExecute = false, WorkingDirectory = stage }))
+                {
+                    process.WaitForExit();
+                    if (process.ExitCode != 0) throw new IOException("Windows installer exit code: " + process.ExitCode);
+                }
+            }
+        }
+
         internal static void CheckWritable(string directory)
         {
             string probe = Path.Combine(directory, ".parklecture-write-" + Guid.NewGuid().ToString("N"));

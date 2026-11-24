@@ -1,4 +1,4 @@
-param([Parameter(Mandatory = $true)][string]$Package, [Parameter(Mandatory = $true)][string]$Version)
+param([Parameter(Mandatory = $true)][string]$Package, [Parameter(Mandatory = $true)][string]$Setup, [Parameter(Mandatory = $true)][string]$Version)
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Use a numeric three-part release version.' }
 $signingXml = $env:PARKLECTURE_SIGNING_KEY
@@ -19,7 +19,20 @@ try {
     if ($signingRsa.ToXmlString($false) -ne $publicXml.Trim()) { throw 'Signing key does not match the public key embedded in the app.' }
     $packageInfo = Get-Item -LiteralPath $Package
     if ($packageInfo.Name -ne "ParkLecture-$Version-portable.zip") { throw 'Package filename does not match its version.' }
-    $manifest = [ordered]@{ schema = 1; version = $Version; asset = $packageInfo.Name; sha256 = (Get-FileHash -LiteralPath $Package -Algorithm SHA256).Hash.ToLowerInvariant(); size = $packageInfo.Length }
+    $setupInfo = Get-Item -LiteralPath $Setup
+    if ($setupInfo.Name -ne 'ParkLecture-Setup.exe' -or $setupInfo.VersionInfo.FileVersion.Trim() -ne "$Version.0") { throw 'Installer filename or version does not match the release.' }
+    $manifest = [ordered]@{
+        schema = 1
+        version = $Version
+        asset = $packageInfo.Name
+        sha256 = (Get-FileHash -LiteralPath $Package -Algorithm SHA256).Hash.ToLowerInvariant()
+        size = $packageInfo.Length
+        setup = [ordered]@{
+            asset = $setupInfo.Name
+            sha256 = (Get-FileHash -LiteralPath $Setup -Algorithm SHA256).Hash.ToLowerInvariant()
+            size = $setupInfo.Length
+        }
+    }
     $manifestBytes = [System.Text.Encoding]::UTF8.GetBytes(($manifest | ConvertTo-Json -Compress))
     $manifestPath = Join-Path $packageInfo.DirectoryName 'update.json'
     [System.IO.File]::WriteAllBytes($manifestPath, $manifestBytes)

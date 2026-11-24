@@ -6,12 +6,12 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using System.Xml.Serialization;
+using ParkLecture.UpdateSupport;
 
 namespace ParkLecture
 {
     internal static class Program
     {
-        internal const string CurrentVersion = "1.0.1";
         internal static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ParkLecture");
         internal static bool Demo;
 
@@ -39,10 +39,14 @@ namespace ParkLecture
                 Application.ThreadException += delegate(object sender, ThreadExceptionEventArgs e) { Report(e.Exception); };
                 try
                 {
-                    var main = new MainForm();
-                    if (preview) main.PreviewPath = args[1];
-                    Application.Run(main);
-                    return 0;
+                    using (var installedApp = !Demo && UpdateInstaller.IsInstalled(AppDomain.CurrentDomain.BaseDirectory)
+                        ? new Mutex(false, UpdateInstaller.InstalledAppMutex) : null)
+                    {
+                        var main = new MainForm();
+                        if (preview) main.PreviewPath = args[1];
+                        Application.Run(main);
+                        return 0;
+                    }
                 }
                 catch (Exception e) { Report(e); return 1; }
             }

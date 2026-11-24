@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
+using System.Web.Script.Serialization;
+using ParkLecture.UpdateSupport;
 
 namespace ParkLecture
 {
@@ -27,6 +30,40 @@ namespace ParkLecture
                     sb.AppendLine("FAIL  " + name + " -> " + ex.Message);
                 }
             };
+
+            check("Signed update manifests select the correct download and reject a changed installer", delegate
+            {
+                using (var rsa = new RSACryptoServiceProvider(2048))
+                using (var sha = SHA256.Create())
+                {
+                    rsa.PersistKeyInCsp = false;
+                    byte[] installer = Encoding.UTF8.GetBytes("Windows installer test data");
+                    string hash = BitConverter.ToString(sha.ComputeHash(installer)).Replace("-", "");
+                    var serializer = new JavaScriptSerializer();
+                    var portable = new { schema = 1, version = "1.0.2", asset = "ParkLecture-1.0.2-portable.zip", sha256 = hash, size = installer.Length };
+                    byte[] legacy = Encoding.UTF8.GetBytes(serializer.Serialize(portable));
+                    var algorithm = CryptoConfig.MapNameToOID("SHA256");
+                    string publicKey = rsa.ToXmlString(false);
+                    var manifest = UpdatePackage.Read(legacy, rsa.SignData(legacy, algorithm), publicKey);
+                    if (manifest.PackageFor(false).asset != portable.asset || manifest.setup != null)
+                        throw new InvalidOperationException("Legacy portable update could not be read.");
+
+                    byte[] current = Encoding.UTF8.GetBytes(serializer.Serialize(new
+                    {
+                        portable.schema, portable.version, portable.asset, portable.sha256, portable.size,
+                        setup = new { asset = UpdatePackage.SetupName, sha256 = hash, size = installer.Length }
+                    }));
+                    manifest = UpdatePackage.Read(current, rsa.SignData(current, algorithm), publicKey);
+                    var setup = manifest.PackageFor(true);
+                    if (setup.asset != UpdatePackage.SetupName || manifest.PackageFor(false).asset != portable.asset)
+                        throw new InvalidOperationException("Update download selection failed.");
+                    using (var stream = new MemoryStream(installer)) UpdatePackage.Verify(stream, setup);
+                    installer[0] ^= 1;
+                    try { using (var stream = new MemoryStream(installer)) UpdatePackage.Verify(stream, setup); }
+                    catch (InvalidDataException) { return; }
+                    throw new InvalidOperationException("Modified installer passed verification.");
+                }
+            });
 
             check("Bundled Pretendard font loads and renders Korean glyphs", delegate
             {

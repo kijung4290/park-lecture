@@ -2,13 +2,27 @@
 
 강사가 PPT 발표나 실습 강의를 진행할 때 **전역 단축키 하나로 화면 확대, 실시간 필기·도형 판서, 칠판 전환, 마우스 커서 강조, 쉬는 시간 타이머, 판서 화면 캡처**를 사용할 수 있는 Windows 강의 도구입니다.
 
-## 실행 방법
+## Windows 설치 및 업데이트
 
-- `실행.cmd` 더블클릭 또는 `bin\ParkLecture.exe` 실행
-- 소스 다시 빌드 및 자체 테스트:
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File .\build.ps1 -Test
-  ```
+1. [Windows 설치 파일 다운로드](https://github.com/kijung4290/park-lecture/releases/latest/download/ParkLecture-Setup.exe)
+2. `ParkLecture-Setup.exe`를 실행한 뒤 시작 메뉴에서 **박주임 강의도구**를 엽니다. Windows 10/11과 .NET Framework 4.8 이상이 필요합니다. 설치는 현재 사용자 계정에 적용됩니다.
+3. 실행 직후와 실행 중 3분마다 GitHub의 최신 배포 버전을 확인합니다. 알림을 누르거나 트레이 메뉴의 **업데이트 확인…**을 선택한 뒤 **업데이트 후 재시작**을 누르면 새 버전을 내려받아 설치합니다. 앱에서 서명과 파일 해시를 검사한 뒤 적용합니다.
+
+기존 포터블 버전을 사용 중이면 트레이 메뉴에서 **종료**를 선택한 뒤 설치 파일을 실행하세요. 같은 Windows 계정에 저장한 설정과 판서를 그대로 열 수 있습니다. 제거는 Windows **설정 → 앱 → 설치된 앱**에서 할 수 있습니다.
+
+포터블 ZIP도 [GitHub Releases](https://github.com/kijung4290/park-lecture/releases)에서 받을 수 있습니다. 쓰기 가능한 폴더에 전체 압축을 풀고 `ParkLecture.exe`를 실행하세요.
+
+## 소스 빌드
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1 -Test
+```
+
+Inno Setup 6을 설치한 뒤 아래 명령을 실행하면 `dist\ParkLecture-Setup.exe`가 생성됩니다. 컴파일러를 별도 폴더에 두었다면 `PARKLECTURE_ISCC`에 `ISCC.exe` 경로를 지정하세요. GitHub Actions는 앱 버전을 올려 `main`에 푸시하면 설치 파일과 서명된 업데이트 정보를 같은 릴리스에 게시합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\release.ps1 -SkipSigning
+```
 
 ## 전역 단축키 (설정에서 변경 가능)
 

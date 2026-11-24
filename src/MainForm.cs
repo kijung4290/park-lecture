@@ -178,6 +178,7 @@ namespace ParkLecture
                     ShowDashboard();
                     UpdateStatus();
                 }
+                NotifyPendingUpdate();
             }
         }
 
@@ -201,13 +202,14 @@ namespace ParkLecture
 
         internal void LaunchTimer()
         {
+            if (updateInstalling) return;
             if (timerForm != null && !timerForm.IsDisposed)
             {
                 timerForm.Activate();
                 return;
             }
             timerForm = new LectureTimerForm(settings);
-            timerForm.FormClosed += delegate { settings.Save(); timerForm = null; UpdateStatus(); };
+            timerForm.FormClosed += delegate { settings.Save(); timerForm = null; UpdateStatus(); NotifyPendingUpdate(); };
             timerForm.Show();
             UpdateStatus();
         }
@@ -540,6 +542,7 @@ namespace ParkLecture
             {
                 e.Cancel = true;
                 Hide();
+                updateBalloon = false;
                 tray.BalloonTipTitle = Words.T("박주임 강의도구", "Park Lecture");
                 tray.BalloonTipText = Words.T("알림 영역에서 실행 중입니다. 단축키로 언제든 확대·필기하세요.", "Running in tray. Use shortcuts anytime.");
                 tray.ShowBalloonTip(2000);

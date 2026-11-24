@@ -701,7 +701,7 @@ namespace ParkLecture
             };
             var autoUpdateChk = new CheckBox
             {
-                Text = Words.T("새 버전 자동 확인 (시작 시 · 이후 6시간마다)", "Check for updates automatically"),
+                Text = Words.T("새 버전 자동 확인 (시작 시 · 이후 3분마다)", "Check for updates at startup and every 3 minutes"),
                 Checked = current.AutoUpdate,
                 Bounds = new Rectangle(24, 418, 540, 26)
             };
